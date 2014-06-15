@@ -1,0 +1,19 @@
+mixin menuitem(name, link, icon)
+    li: a(href='#{link}')
+        if icon
+            i(class="fa #{icon} fa-fw")
+        else
+            i.fa.fa-dashboard.fa-fw
+        = name
+
+mixin submenu(name, icon)
+    li
+        a(href='#')
+            if icon
+                i(class="fa #{icon} fa-fw")
+            else
+                i.fa.fa-dashboard.fa-fw
+            = name
+            span.fa.arrow
+        ul.nav.nav-second-level
+            block

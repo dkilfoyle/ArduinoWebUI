@@ -1,0 +1,19 @@
+// A panel
+mixin panel(title, actions)
+    .panel.panel-default
+        .panel-heading
+            i.fa.fa-bar-chart-o.fa-fw
+            = title
+            
+            if actions
+                .pull-right
+                    .btn-group
+                        button.btn.btn-default.btn-xs.dropdown-toggle(type='button', data-toggle='dropdown')
+                            | Actions
+                            span.caret
+                        ul.dropdown-menu.pull-right(role='menu')
+                            each val, key in actions
+                                li: a(id='#{val}', href='#') #{key}
+        .panel-body
+            if block
+                block

@@ -1,0 +1,46 @@
+extends layout-dash
+include panelmixins
+include navmixins
+
+block morehead
+    script(src="http://localhost:8080/socket.io/socket.io.js")
+    script.
+        function init() {
+            socket = io.connect('http://localhost', {
+                port: 8080
+            });
+            socket.on('distance', function (e) {
+                value = e.val;
+                console.log(value);
+            });
+        }
+        
+block usernavs
+    +menuitem("User Profile", "#", "fa-user")
+    +menuitem("Settings", "#", "fa-gear")
+    li.divider
+    +menuitem("Logout", "#", "fa-sign-out")
+        
+block sidenavs
+    +menuitem("Dashboard", "#")
+    +submenu("Charts", "fa-bar-chart-o")
+        +menuitem("MenuItem1", "#")
+        +menuitem("MenuItem2", "#")
+
+block leftcol
+    +panel("   My Panel 1")
+        h4 Buttons
+        p
+            button.btn.btn-primary(type='button') One 
+            button.btn.btn-primary(type='button') Two 
+            button.btn.btn-primary(type='button') Three 
+            button.btn.btn-primary(type='button') Four 
+
+block rightcol
+    +panel("   My Panel 2", {"action1": "idaction1", "action2" : "idaction2", "action3" : "idaction3"})
+        h4 Buttons
+        p
+            button.btn.btn-primary(type='button') One 
+            button.btn.btn-primary(type='button') Two 
+            button.btn.btn-primary(type='button') Three 
+            button.btn.btn-primary(type='button') Four 
