@@ -5,39 +5,79 @@ var logger = require('morgan');
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 
+var templatizer = require('templatizer');
+templatizer("./views", "./public/js/mytemplates.js");
+
 var five = require('johnny-five'),
     io = require('socket.io').listen(8080),
-    board, ping;
+    board, 
+    ping;
 
-board = new five.Board({
-    port: "COM3"
-});
+io.set('log level', 1); // reduce logging
 
-board.on("ready", function () {
-    // Create a new `ping` hardware instance.
-    ping = new five.Ping({
-        pin: 7,
-        freq: 500
-    });
+//board = new five.Board({
+//    port: "COM3"
+//});
 
-    app.set('ping', ping);
-
-    //    board.repl.inject({
-    //        ping: ping
-    //    });
-
-    // "data" get the current reading from the ping
-    ping.on("data", function (err, value) {
-        board.emit('distance', this.cm);
-    });
-
-});
+//board.on("ready", function () {
+//    // Create a new `ping` hardware instance.
+//    ping = new five.Ping({
+//        pin: 7,
+//        freq: 500
+//    });
+//
+////    app.set('ping', ping);
+//
+//    // "data" get the current reading from the ping
+//    ping.on("data", function (err, value) {
+//        board.emit('distance', this.cm);
+//    });
+//    
+//    io.sockets.on('connection', function (socket) {
+//        board.on('distance', function (val) {
+//            socket.emit('distance', { val: val });
+//        });
+//    });
+//
+//});
 
 io.sockets.on('connection', function (socket) {
-    board.on('distance', function (val) {
-        socket.emit('distance', {
-            val: val
+    
+    socket.on('arduinoConnect', function (val) {
+        board = new five.Board({ port: val.port });
+        
+        board.on("ready", function () {
+            socket.emit("arduinoConnected");
         });
+    });
+    
+    socket.on("pingAdd", function (val) {
+        if (board != undefined) {
+            ping = new five.Ping({ pin: val.pin, freq: val.freq });
+            ping.myname = val.name;
+            ping.on("data", function (err, value) {
+                board.emit('distance', { distance: this.cm, name: this.myname });
+            });
+            
+            board.on('distance', function (val) {
+                socket.emit('distance', val);
+            });
+        }
+    });
+    
+    socket.on("sensorAdd", function (val) {
+        if (board != undefined) {
+            sensor = new five.Sensor({ pin: val.pin, freq: val.freq });
+            sensor.myname = val.name;
+            
+            sensor.on("data", function (err, value) {
+                board.emit('sensorReading', { value: this.value, name: this.myname });
+            });
+            
+            board.on('sensorReading', function (val) {
+                socket.emit('sensorReading', val);
+            });
+        }
     });
 });
 
@@ -51,7 +91,7 @@ app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'jade');
 
 app.use(favicon());
-app.use(logger('dev'));
+//app.use(logger('dev'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded());
 app.use(cookieParser());

@@ -4,17 +4,160 @@ include navmixins
 
 block morehead
     script(src="http://localhost:8080/socket.io/socket.io.js")
+    script(src="js/smoothie.js")
+    script(src="js/mytemplates.js")
+    script(src="js/segment-display.js")
+    script(src="js/raphael.2.1.0.min.js")
+    script(src="js/justgage.js")
     script.
-        function init() {
+        var pings = {};
+        var sensors = {};
+        
+        Number.prototype.pad = function(size) {
+            var s = String(this);
+            if(typeof(size) !== "number"){size = 2;}
+            while (s.length < size) {s = " " + s;}
+            return s;
+        }
+        
+        $(document).ready(function() {
+        
+            // websocket setup
             socket = io.connect('http://localhost', {
                 port: 8080
             });
+            
+            // PING related code
+            
             socket.on('distance', function (e) {
-                value = e.val;
-                console.log(value);
+                pings[e.name].timeseries.append(new Date().getTime(), e.distance);
+                pings[e.name].digits.setValue(Math.round(e.distance).pad(3));   
             });
-        }
+                    
+            $("#showNewPingSensor").click(function() {
+                $("#newPingSensor").show("slow");
+            });
+            
+            $("#closeNewPingSensor").click(function() {
+                $("#newPingSensor").hide();
+            });
+            
+            $("#pingAdd").click(function() {
+                
+                display = new SegmentDisplay($("#pingName").val() + "-digits");
+                      display.pattern         = "###";
+                      display.displayAngle    = 6;
+                      display.digitHeight     = 19.5;
+                      display.digitWidth      = 13;
+                      display.digitDistance   = 2.5;
+                      display.segmentWidth    = 2.4;
+                      display.segmentDistance = 0.3;
+                      display.segmentCount    = 7;
+                      display.cornerType      = 3;
+                      display.colorOn         = "#24dd22";
+                      display.colorOff        = "#1b3a05";
+                      display.draw();
+                
+                var newping = { 
+                    pin: $("#pingPin").val(),
+                    freq: $("#pingFreq").val(),
+                    name: $("#pingName").val(),
+                    smoothie: new SmoothieChart({maxValue:220, minValue:0}),
+                    timeseries: new TimeSeries(),
+                    digits: display
+                    };
+                        
+                socket.emit("pingAdd", { pin: newping.pin, freq: newping.freq, name: newping.name });
+                    
+                $("div.col-lg-8").append(templatizer.panelmixins.canvaspanel(newping.name, {"Close": "close"+newping.name}, newping.name));
+                    
+                $("#close"+newping.name).click(function() {
+                    $("#"+newping.name+"-panel").remove();
+                });
+                
+                newping.smoothie.streamTo(document.getElementById(newping.name+"-canvas"));
+                $("#"+newping.name+"-canvas")[0].width = $("#"+newping.name+"-div").width();
+                newping.smoothie.addTimeSeries(newping.timeseries, {lineWidth:2,strokeStyle:'#00ff00'}); 
+                
+                pings[newping.name] = newping;
+                 
+            });
+            
+            // POT related code
+            
+            socket.on('sensorReading', function (e) {
+                sensors[e.name].gage.refresh(e.value);
+            });
+            
+            $("#showNewPotSensor").click(function() {
+                $("#newPotSensor").show("slow");
+            });
+            
+            $("#closeNewPotSensor").click(function() {
+                $("#newPotSensor").hide();
+            });
+            
+            $("#potAdd").click(function() {
+
+                var potName = $("#potName").val();
+                
+                // Create new pot dash panel
+                $("div.col-lg-8").append(templatizer.panelmixins.gagepanel(potName, {"Close": "close"+potName}, potName));
+                $("#close"+potName).click(function() {
+                    $("#"+potName+"-panel").remove();
+                });
+                
+                var gage = new JustGage({
+                    parentNode: potName+"-div",
+                    min: 0,
+                    max: 1024,
+                    title: "Pin"
+                });
+                
+                var newpot = { 
+                    pin: $("#potPin").val(),
+                    name: $("#potName").val(),
+                    gage: gage
+                };
+                    
+                socket.emit("sensorAdd", { pin: newpot.pin, name: newpot.name, freq: newpot.freq });               
+                     
+                sensors[newpot.name] = newpot;
+                 
+            });          
+            
+            
+            // Connection related code
+            
+            // Populate the com ports in the connect arduino panel
+            $.getJSON("/admin/comports", function(result) {
+                var options = $("#arduinoCOMPort")
+                $.each(result, function() {
+                    options.append($("<option />").text(this.comName));
+                    });
+                });
+                
+            socket.on('arduinoConnected', function() {
+                $("#arduinoConnect").text("Disconnect");
+                $("#arduinoConnect").removeClass("btn-warning").addClass("btn-danger");
+            });
+                
+            $("#arduinoConnect").click(function() {
+                if ($(this).text() == "Connect") {
+                    socket.emit("arduinoConnect", { port: $("#arduinoCOMPort").val() } );
+                    $("#arduinoConnect").text("Connecting...");
+                    $("#arduinoConnect").removeClass("btn-success").addClass("btn-warning");
+                }
+                else {
+                    socket.emit("arduinoDisConnect");
+                    $("#arduinoConnect").text("Not implemented");
+                }
+            });
+             
+             
+        });
         
+
 block usernavs
     +menuitem("User Profile", "#", "fa-user")
     +menuitem("Settings", "#", "fa-gear")
@@ -22,25 +165,61 @@ block usernavs
     +menuitem("Logout", "#", "fa-sign-out")
         
 block sidenavs
-    +menuitem("Dashboard", "#")
-    +submenu("Charts", "fa-bar-chart-o")
-        +menuitem("MenuItem1", "#")
-        +menuitem("MenuItem2", "#")
+    +menuitem("    Dashboard", "#")
+    +submenu("    Sensors", "fa-bar-chart-o")
+        +menuitem("    Ping", "#", "showNewPingSensor")
+        +menuitem("    Pot", "#", "showNewPotSensor")
 
 block leftcol
-    +panel("   My Panel 1")
-        h4 Buttons
-        p
-            button.btn.btn-primary(type='button') One 
-            button.btn.btn-primary(type='button') Two 
-            button.btn.btn-primary(type='button') Three 
-            button.btn.btn-primary(type='button') Four 
-
+    +panel("   Arduino")
+        .form-inline
+            .form-group
+                select.form-control#arduinoCOMPort
+            .form-group
+                button.btn.btn-success#arduinoConnect Connect
+        
 block rightcol
-    +panel("   My Panel 2", {"action1": "idaction1", "action2" : "idaction2", "action3" : "idaction3"})
-        h4 Buttons
-        p
-            button.btn.btn-primary(type='button') One 
-            button.btn.btn-primary(type='button') Two 
-            button.btn.btn-primary(type='button') Three 
-            button.btn.btn-primary(type='button') Four 
+    +panel("   New Ping", {"Close Panel": "closeNewPingSensor"})(id="newPingSensor", hidden)
+        form.form-horizontal(role="form")
+            .form-group
+                label.col-sm-2.control-label Name:
+                .col-sm-10
+                    input.form-control#pingName(value="HC-SR04")
+            .form-group
+                label.col-sm-2.control-label Pin:
+                .col-sm-10
+                    select.form-control#pingPin
+                        each val in [1,2,3,4,5,6,7,8,9,10]
+                            option= val
+            .form-group
+                label.col-sm-2.control-label Freq:
+                .col-sm-10
+                    input.form-control#pingFreq(value="100")                   
+            .form-group
+                .col-sm-offset-2.col-sm-10
+                    button.btn.btn-default#pingAdd Add
+    +panel("   New Pot", {"Close Panel": "closeNewPotSensor"})(id="newPotSensor", hidden)
+        form.form-horizontal(role="form")
+            .form-group
+                label.col-sm-2.control-label Name:
+                .col-sm-10
+                    input.form-control#potName(value="mypot")
+            .form-group
+                label.col-sm-2.control-label Pin:
+                .col-sm-10
+                    select.form-control#potPin
+                        each val in [1,2,3,4,5,6,7,8,9,10]
+                            option= val
+                        option A0
+                        option A1
+                        option A2
+                        option A3
+                        option A4
+                        option A5
+            .form-group
+                label.col-sm-2.control-label Freq:
+                .col-sm-10
+                    input.form-control#pingFreq(value="100")    
+            .form-group
+                .col-sm-offset-2.col-sm-10
+                    button.btn.btn-default#potAdd Add

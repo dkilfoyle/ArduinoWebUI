@@ -1,5 +1,5 @@
-mixin menuitem(name, link, icon)
-    li: a(href='#{link}')
+mixin menuitem(name, link, myid, icon)
+    li: a(href='#{link}', id=myid)
         if icon
             i(class="fa #{icon} fa-fw")
         else

@@ -1,6 +1,5 @@
-// A panel
 mixin panel(title, actions)
-    .panel.panel-default
+    div.panel.panel-default(id!=attributes.id, hidden!=attributes.hidden)
         .panel-heading
             i.fa.fa-bar-chart-o.fa-fw
             = title
@@ -17,3 +16,19 @@ mixin panel(title, actions)
         .panel-body
             if block
                 block
+
+mixin canvaspanel(title, actions, canvasid)
+    +panel(title, actions)(id="#{canvasid}-panel")
+        canvas.col-md-2(id='#{canvasid}-digits', style="background: black")
+        div(id='#{canvasid}-div')
+            canvas.col-md-10(id='#{canvasid}-canvas')
+        
+mixin gagepanel(title, actions, canvasid)
+    +panel(title, actions)(id="#{canvasid}-panel")
+        div.col-md-2(id='#{canvasid}-div', style="height:150px;")
+        
+// need this to store the mixins
++canvaspanel("Test",{},"Test")
++gagepanel("Test",{}, "Test")
+        
+        
